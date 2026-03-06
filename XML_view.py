@@ -85,22 +85,75 @@ def chave_nfe_box(label, chave):
     else:
         chave_formatada = chave
     
-    # Criar HTML com o mesmo estilo dos seus cards
+    # HTML com CSS embutido para garantir o estilo
     html_code = f"""
-    <div class="chave-card">
-        <div class="chave-label">{label}</div>
-        <div class="chave-value">{chave_formatada}</div>
-        <button class="copy-button" onclick="copiarChave('{chave}')">
+    <div style="
+        background-color: #FFFFFF;
+        padding: 20px;
+        border-radius: 8px;
+        border: 2px solid #000000;
+        text-align: center;
+        margin-bottom: 25px;
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    ">
+        <div style="
+            color: #555555;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        ">{label}</div>
+        
+        <div style="
+            color: #000000;
+            font-size: 26px;
+            font-weight: 800;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 3px;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #cccccc;
+        ">{chave_formatada}</div>
+        
+        <button onclick="copiarChave()" style="
+            background-color: #1a5f7a;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            border: 1px solid #0d3b4f;
+        " onmouseover="this.style.backgroundColor='#0d3b4f'; this.style.transform='translateY(-1px)'" 
+           onmouseout="this.style.backgroundColor='#1a5f7a'; this.style.transform='translateY(0)'">
             📋 COPIAR CHAVE
         </button>
-        <div id="copyMessage" style="color: #28a745; font-size: 12px; margin-top: 10px; min-height: 18px;"></div>
+        
+        <div id="copyMessage" style="
+            color: #28a745;
+            font-size: 12px;
+            margin-top: 10px;
+            min-height: 18px;
+        "></div>
     </div>
 
     <script>
-    function copiarChave(chave) {{
-        navigator.clipboard.writeText(chave).then(function() {{
+    function copiarChave() {{
+        navigator.clipboard.writeText('{chave}').then(function() {{
             const msg = document.getElementById('copyMessage');
             msg.innerHTML = '✓ Chave copiada com sucesso!';
+            msg.style.color = '#28a745';
+            setTimeout(function() {{
+                msg.innerHTML = '';
+            }}, 2000);
+        }}).catch(function() {{
+            const msg = document.getElementById('copyMessage');
+            msg.innerHTML = '✗ Erro ao copiar';
+            msg.style.color = '#dc3545';
             setTimeout(function() {{
                 msg.innerHTML = '';
             }}, 2000);
@@ -248,3 +301,4 @@ if uploaded_file:
 
     except Exception as e:
         st.error(f"Erro ao processar: {e}")
+
