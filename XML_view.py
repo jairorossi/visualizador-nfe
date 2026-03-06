@@ -27,43 +27,50 @@ st.markdown("""
         font-weight: bold !important;
         background-color: #f8f9fa !important;
     }
-    /* Estilo para o card da chave NFE (igual aos outros cards) */
-    .chave-nfe-card {
+    /* Estilo para o card da chave NFE (MESMO ESTILO DOS CARDS DE MÉTRICA) */
+    .chave-card {
         background-color: #FFFFFF !important;
-        padding: 15px;
+        padding: 20px;
         border-radius: 8px;
         border: 2px solid #000000;
         text-align: center;
-        margin-bottom: 20px;
+        margin-bottom: 25px;
     }
-    .chave-nfe-label {
+    .chave-label {
         color: #555555;
         font-size: 14px;
         font-weight: bold;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
+        text-transform: uppercase;
     }
-    .chave-nfe-value {
+    .chave-value {
         color: #000000;
-        font-size: 24px;
+        font-size: 26px;
         font-weight: 800;
-        font-family: monospace;
-        letter-spacing: 2px;
-        margin-bottom: 15px;
+        font-family: 'Courier New', monospace;
+        letter-spacing: 3px;
+        margin: 15px 0;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        border: 1px solid #cccccc;
     }
-    /* Estilo do botão de copiar */
     .copy-button {
         background-color: #1a5f7a;
         color: white;
         border: none;
-        padding: 8px 20px;
+        padding: 10px 25px;
         border-radius: 5px;
         font-weight: bold;
         cursor: pointer;
         font-size: 14px;
-        transition: background-color 0.3s;
+        transition: all 0.3s;
+        border: 1px solid #0d3b4f;
     }
     .copy-button:hover {
         background-color: #0d3b4f;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -72,45 +79,37 @@ def metric_box(label, value):
     st.markdown(f'<div class="metric-card"><p class="metric-label">{label}</p><p class="metric-value">{value}</p></div>', unsafe_allow_html=True)
 
 def chave_nfe_box(label, chave):
-    # Formatar a chave em grupos de 4 dígitos para melhor legibilidade
+    # Formatar a chave em grupos de 4 dígitos
     if chave and len(chave) == 44:
         chave_formatada = ' '.join([chave[i:i+4] for i in range(0, 44, 4)])
     else:
         chave_formatada = chave
     
-    # Criar um ID único para o botão e mensagem
-    import random
-    button_id = f"copy_btn_{random.randint(1000, 9999)}"
-    msg_id = f"copy_msg_{random.randint(1000, 9999)}"
-    
+    # Criar HTML com o mesmo estilo dos seus cards
     html_code = f"""
-    <div class="chave-nfe-card">
-        <p class="chave-nfe-label">{label}</p>
-        <p class="chave-nfe-value">{chave_formatada}</p>
-        <button class="copy-button" onclick="copiarChave('{chave}', '{msg_id}')" id="{button_id}">
+    <div class="chave-card">
+        <div class="chave-label">{label}</div>
+        <div class="chave-value">{chave_formatada}</div>
+        <button class="copy-button" onclick="copiarChave('{chave}')">
             📋 COPIAR CHAVE
         </button>
-        <p id="{msg_id}" style="color: #28a745; font-size: 12px; margin-top: 8px; min-height: 18px;"></p>
+        <div id="copyMessage" style="color: #28a745; font-size: 12px; margin-top: 10px; min-height: 18px;"></div>
     </div>
 
     <script>
-    function copiarChave(chave, msgId) {{
+    function copiarChave(chave) {{
         navigator.clipboard.writeText(chave).then(function() {{
-            document.getElementById(msgId).innerHTML = '✅ Chave copiada com sucesso!';
+            const msg = document.getElementById('copyMessage');
+            msg.innerHTML = '✓ Chave copiada com sucesso!';
             setTimeout(function() {{
-                document.getElementById(msgId).innerHTML = '';
-            }}, 2000);
-        }}, function(err) {{
-            document.getElementById(msgId).innerHTML = '❌ Erro ao copiar';
-            setTimeout(function() {{
-                document.getElementById(msgId).innerHTML = '';
+                msg.innerHTML = '';
             }}, 2000);
         }});
     }}
     </script>
     """
     
-    st.components.v1.html(html_code, height=180)
+    st.components.v1.html(html_code, height=220)
 
 def carregar_dados(xml_content):
     dados = xmltodict.parse(xml_content, process_namespaces=False)
@@ -147,7 +146,7 @@ if uploaded_file:
         dest = nfe['dest']
         tot = nfe['total']['ICMSTot']
         
-        # 0. CHAVE NFE (AGORA EM PRIMEIRO LUGAR)
+        # CHAVE NFE EM PRIMEIRO LUGAR (AGORA COM ESTILO IGUAL AOS CARDS)
         if chave_nfe:
             chave_nfe_box("🔑 CHAVE DA NOTA FISCAL ELETRÔNICA", chave_nfe)
         
