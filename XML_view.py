@@ -1,7 +1,6 @@
 import streamlit as st
 import xmltodict
 import pandas as pd
-import pyperclip
 from streamlit.components.v1 import html
 
 st.set_page_config(page_title="Núcleo Farma - Visualizador XML", layout="wide")
@@ -58,13 +57,18 @@ st.markdown("""
         background-color: #ffffff;
         border-radius: 5px;
         border: 1px dashed #1a5f7a;
+        transition: all 0.3s ease;
     }
     .chave-nfe-value:hover {
         background-color: #f0f8ff;
+        transform: scale(1.02);
+    }
+    .chave-nfe-value.copiado {
+        background-color: #d4edda;
+        border-color: #28a745;
     }
     /* Estilo para os botões */
-    .fsist-button {
-        background-color: #4CAF50;
+    .fsist-button, .copy-button {
         border: none;
         color: white;
         padding: 12px 24px;
@@ -79,61 +83,35 @@ st.markdown("""
         transition: all 0.3s ease;
         box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
+    .copy-button {
+        background-color: #2196F3;
+    }
+    .copy-button:hover {
+        background-color: #1976D2;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        transform: translateY(-2px);
+    }
+    .fsist-button {
+        background-color: #4CAF50;
+    }
     .fsist-button:hover {
         background-color: #45a049;
         box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         transform: translateY(-2px);
     }
-    .copy-button {
-        background-color: #2196F3;
-        border: none;
+    .mensagem-copiado {
+        background-color: #28a745;
         color: white;
         padding: 8px 16px;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 14px;
-        margin: 4px 2px;
-        cursor: pointer;
         border-radius: 5px;
-        transition: all 0.3s ease;
-    }
-    .copy-button:hover {
-        background-color: #1976D2;
-    }
-    .tooltip {
-        position: relative;
+        margin-top: 10px;
         display: inline-block;
+        animation: fadeOut 2s forwards;
     }
-    .tooltip .tooltiptext {
-        visibility: hidden;
-        width: 140px;
-        background-color: #555;
-        color: #fff;
-        text-align: center;
-        border-radius: 6px;
-        padding: 5px;
-        position: absolute;
-        z-index: 1;
-        bottom: 150%;
-        left: 50%;
-        margin-left: -75px;
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-    .tooltip .tooltiptext::after {
-        content: "";
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        margin-left: -5px;
-        border-width: 5px;
-        border-style: solid;
-        border-color: #555 transparent transparent transparent;
-    }
-    .tooltip:hover .tooltiptext {
-        visibility: visible;
-        opacity: 1;
+    @keyframes fadeOut {
+        0% { opacity: 1; }
+        70% { opacity: 1; }
+        100% { opacity: 0; }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -150,53 +128,103 @@ def chave_nfe_box(chave):
         chave_formatada = chave
         chave_sem_formatacao = chave
     
-    # Criar o HTML com JavaScript para copiar
+    # Criar o HTML com JavaScript para copiar (sem depender de pyperclip)
     html_code = f"""
     <div class="chave-nfe-card">
         <p class="chave-nfe-label">🔑 CHAVE DA NOTA FISCAL ELETRÔNICA (44 DÍGITOS)</p>
-        <div class="tooltip">
+        <div>
             <p class="chave-nfe-value" onclick="copiarChave()" id="chaveValor">{chave_formatada}</p>
-            <span class="tooltiptext" id="tooltipTexto">Clique para copiar</span>
         </div>
-        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 15px;">
             <button class="copy-button" onclick="copiarChave()">
                 📋 Copiar Chave
             </button>
             <button class="fsist-button" onclick="abrirFSist()">
-                🌐 Abrir FSist (cole a chave)
+                🌐 Abrir FSist
             </button>
         </div>
+        <div id="mensagemCopiado" style="margin-top: 10px; min-height: 30px;"></div>
         <p style="color: #666; font-size: 12px; margin-top: 10px;">
-            👆 Clique na chave para copiar | Depois cole no site da FSist
+            👆 Clique na chave ou no botão para copiar | Depois cole no site da FSist
         </p>
     </div>
 
     <script>
     const chaveReal = "{chave_sem_formatacao}";
     
+    function mostrarMensagem(texto, tipo) {{
+        const div = document.getElementById('mensagemCopiado');
+        div.innerHTML = `<span style="background-color: ${{tipo === 'sucesso' ? '#28a745' : '#dc3545'}}; color: white; padding: 8px 16px; border-radius: 5px;">${{texto}}</span>`;
+        setTimeout(() => {{
+            div.innerHTML = '';
+        }}, 2000);
+    }}
+    
     function copiarChave() {{
-        navigator.clipboard.writeText(chaveReal).then(function() {{
-            const tooltip = document.getElementById('tooltipTexto');
-            const originalText = tooltip.textContent;
-            tooltip.textContent = '✅ Copiado!';
-            tooltip.style.backgroundColor = '#4CAF50';
-            
-            setTimeout(function() {{
-                tooltip.textContent = originalText;
-                tooltip.style.backgroundColor = '#555';
-            }}, 2000);
-        }}, function(err) {{
-            alert('Erro ao copiar: ' + err);
-        }});
+        // Método moderno usando Clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {{
+            navigator.clipboard.writeText(chaveReal).then(function() {{
+                mostrarMensagem('✅ Chave copiada com sucesso!', 'sucesso');
+                
+                // Feedback visual no elemento da chave
+                const chaveElement = document.getElementById('chaveValor');
+                chaveElement.classList.add('copiado');
+                setTimeout(() => {{
+                    chaveElement.classList.remove('copiado');
+                }}, 500);
+                
+            }}).catch(function(err) {{
+                // Se falhar, tenta o método alternativo
+                copiarChaveFallback();
+            }});
+        }} else {{
+            // Se Clipboard API não estiver disponível, usa método alternativo
+            copiarChaveFallback();
+        }}
+    }}
+    
+    function copiarChaveFallback() {{
+        // Método alternativo usando textarea temporário
+        const textarea = document.createElement('textarea');
+        textarea.value = chaveReal;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(0, 99999);
+        
+        try {{
+            const successful = document.execCommand('copy');
+            if (successful) {{
+                mostrarMensagem('✅ Chave copiada com sucesso!', 'sucesso');
+            }} else {{
+                mostrarMensagem('❌ Erro ao copiar. Selecione a chave e copie manualmente.', 'erro');
+            }}
+        }} catch (err) {{
+            mostrarMensagem('❌ Erro ao copiar. Selecione a chave e copie manualmente.', 'erro');
+        }}
+        
+        document.body.removeChild(textarea);
     }}
     
     function abrirFSist() {{
         window.open('https://www.fsist.com.br', '_blank');
+        mostrarMensagem('✅ Site aberto! Agora cole a chave (Ctrl+V)', 'sucesso');
     }}
+    
+    // Adicionar evento de teclado para Ctrl+C
+    document.getElementById('chaveValor').addEventListener('keydown', function(e) {{
+        if ((e.ctrlKey || e.metaKey) && e.key === 'c') {{
+            copiarChave();
+        }}
+    }});
+    
+    // Tornar o elemento focável para permitir Ctrl+C
+    document.getElementById('chaveValor').setAttribute('tabindex', '0');
     </script>
     """
     
-    st.components.v1.html(html_code, height=250)
+    st.components.v1.html(html_code, height=320)
 
 def carregar_dados(xml_content):
     dados = xmltodict.parse(xml_content, process_namespaces=False)
