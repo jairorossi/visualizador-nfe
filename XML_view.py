@@ -1,7 +1,7 @@
 import streamlit as st
 import xmltodict
 import pandas as pd
-import webbrowser
+import pyperclip
 from streamlit.components.v1 import html
 
 st.set_page_config(page_title="Núcleo Farma - Visualizador XML", layout="wide")
@@ -52,8 +52,17 @@ st.markdown("""
         font-family: monospace;
         letter-spacing: 2px;
         margin-bottom: 15px;
+        cursor: pointer;
+        user-select: all;
+        padding: 10px;
+        background-color: #ffffff;
+        border-radius: 5px;
+        border: 1px dashed #1a5f7a;
     }
-    /* Estilo para o botão da FSist */
+    .chave-nfe-value:hover {
+        background-color: #f0f8ff;
+    }
+    /* Estilo para os botões */
     .fsist-button {
         background-color: #4CAF50;
         border: none;
@@ -75,6 +84,57 @@ st.markdown("""
         box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         transform: translateY(-2px);
     }
+    .copy-button {
+        background-color: #2196F3;
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 14px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 5px;
+        transition: all 0.3s ease;
+    }
+    .copy-button:hover {
+        background-color: #1976D2;
+    }
+    .tooltip {
+        position: relative;
+        display: inline-block;
+    }
+    .tooltip .tooltiptext {
+        visibility: hidden;
+        width: 140px;
+        background-color: #555;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 5px;
+        position: absolute;
+        z-index: 1;
+        bottom: 150%;
+        left: 50%;
+        margin-left: -75px;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    .tooltip .tooltiptext::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: #555 transparent transparent transparent;
+    }
+    .tooltip:hover .tooltiptext {
+        visibility: visible;
+        opacity: 1;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -85,44 +145,58 @@ def chave_nfe_box(chave):
     # Formatar a chave em grupos de 4 dígitos para melhor legibilidade
     if chave and len(chave) == 44:
         chave_formatada = ' '.join([chave[i:i+4] for i in range(0, 44, 4)])
+        chave_sem_formatacao = chave
     else:
         chave_formatada = chave
+        chave_sem_formatacao = chave
     
-    # Criar o link para a FSist
-    link_fsist = f"https://www.fsist.com.br/?chave={chave}"
-    
-    st.markdown(f'''
+    # Criar o HTML com JavaScript para copiar
+    html_code = f"""
     <div class="chave-nfe-card">
         <p class="chave-nfe-label">🔑 CHAVE DA NOTA FISCAL ELETRÔNICA (44 DÍGITOS)</p>
-        <p class="chave-nfe-value">{chave_formatada}</p>
-        <a href="{link_fsist}" target="_blank">
-            <button class="fsist-button">
-                📥 Baixar XML no FSist
+        <div class="tooltip">
+            <p class="chave-nfe-value" onclick="copiarChave()" id="chaveValor">{chave_formatada}</p>
+            <span class="tooltiptext" id="tooltipTexto">Clique para copiar</span>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <button class="copy-button" onclick="copiarChave()">
+                📋 Copiar Chave
             </button>
-        </a>
+            <button class="fsist-button" onclick="abrirFSist()">
+                🌐 Abrir FSist (cole a chave)
+            </button>
+        </div>
         <p style="color: #666; font-size: 12px; margin-top: 10px;">
-            Clique no botão para abrir o FSist com a chave pré-preenchida
+            👆 Clique na chave para copiar | Depois cole no site da FSist
         </p>
     </div>
-    ''', unsafe_allow_html=True)
+
+    <script>
+    const chaveReal = "{chave_sem_formatacao}";
     
-    # Opção alternativa usando JavaScript para abrir em nova aba (funciona melhor em alguns casos)
-    button_js = f"""
-    <div style="text-align: center; margin-top: 10px;">
-        <button onclick="window.open('{link_fsist}', '_blank')" 
-                style="background-color: #2196F3; 
-                       border: none; 
-                       color: white; 
-                       padding: 10px 20px; 
-                       border-radius: 5px; 
-                       cursor: pointer;
-                       font-size: 14px;">
-            🔗 Abrir FSist em nova aba
-        </button>
-    </div>
+    function copiarChave() {{
+        navigator.clipboard.writeText(chaveReal).then(function() {{
+            const tooltip = document.getElementById('tooltipTexto');
+            const originalText = tooltip.textContent;
+            tooltip.textContent = '✅ Copiado!';
+            tooltip.style.backgroundColor = '#4CAF50';
+            
+            setTimeout(function() {{
+                tooltip.textContent = originalText;
+                tooltip.style.backgroundColor = '#555';
+            }}, 2000);
+        }}, function(err) {{
+            alert('Erro ao copiar: ' + err);
+        }});
+    }}
+    
+    function abrirFSist() {{
+        window.open('https://www.fsist.com.br', '_blank');
+    }}
+    </script>
     """
-    # Descomente a linha abaixo se quiser usar o botão JavaScript
-    # html(button_js)
+    
+    st.components.v1.html(html_code, height=250)
 
 def carregar_dados(xml_content):
     dados = xmltodict.parse(xml_content, process_namespaces=False)
@@ -132,17 +206,21 @@ st.title("📑 Visualizador de NF-e (Layout Padrão DANFE)")
 st.markdown("---")
 
 # Informação sobre o FSist
-with st.expander("ℹ️ Sobre o download de XMLs"):
+with st.expander("ℹ️ Como baixar o XML no FSist", expanded=True):
     st.markdown("""
-    ### Como baixar o XML da nota:
-    1. **Clique no botão "Baixar XML no FSist"** que aparece com a chave da nota
-    2. Você será redirecionado para o site [FSist](https://www.fsist.com.br)
-    3. No site, você precisará:
-       - Ter um **certificado digital** instalado (A1 ou A3)
-       - Clicar em "Continuar" para acessar o portal da fazenda
-       - O certificado deve ser do emitente, destinatário ou autorizado na tag autXML
+    ### 📋 Passo a passo para baixar o XML:
     
-    ⚠️ **Importante**: O FSist é gratuito para baixar uma chave por vez, mas exige certificado digital!
+    1. **Clique na chave** acima ou no botão **"Copiar Chave"** para copiar os 44 dígitos
+    2. **Clique em "Abrir FSist"** para ir ao site
+    3. **No site FSist:**
+       - Cole a chave no campo "Digite a Chave" (Ctrl+V)
+       - Clique em "CONSULTAR NOTA"
+       - Siga as instruções (será necessário certificado digital)
+    
+    ⚠️ **Importante sobre o FSist:**
+    - Gratuito para uma chave por vez
+    - Exige **certificado digital** (A1 ou A3)
+    - O certificado deve ser do emitente, destinatário ou autorizado na tag autXML
     """)
 
 uploaded_file = st.file_uploader("Arraste o XML aqui", type="xml")
@@ -176,7 +254,7 @@ if uploaded_file:
         dest = nfe['dest']
         tot = nfe['total']['ICMSTot']
         
-        # 1. EXIBIR A CHAVE NFE PRIMEIRO COM LINK PARA FSIST
+        # 1. EXIBIR A CHAVE NFE PRIMEIRO COM OPÇÃO DE COPIAR
         chave_nfe_box(chave_nfe)
         
         # 2. CABEÇALHO (IDENTIFICAÇÃO)
@@ -205,7 +283,7 @@ if uploaded_file:
                 with cols_dup[i]:
                     st.warning(f"**Parc: {d.get('nDup')}**\n\nVenc: {d.get('dVenc')}\n\nValor: R$ {d.get('vDup')}")
 
-        # 5. CÁLCULO DO IMPOSTO (Conforme solicitado)
+        # 5. CÁLCULO DO IMPOSTO
         st.subheader("📊 CÁLCULO DO IMPOSTO")
         r1 = st.columns(5)
         r1[0].text_input("BASE DE CÁLC. DO ICMS", value=tot.get('vBC'), disabled=True)
@@ -274,14 +352,6 @@ if uploaded_file:
         # 8. INFORMAÇÕES ADICIONAIS
         st.subheader("📝 DADOS ADICIONAIS")
         st.info(f"**INFORMAÇÕES COMPLEMENTARES:**\n\n{nfe['infAdic'].get('infCpl', 'N/A')}")
-
-        # 9. LINKS ÚTEIS (opcional - mais uma opção de acesso)
-        with st.expander("🔗 Links úteis para download de XML"):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown(f"**FSist com chave:** [Abrir link](https://www.fsist.com.br/?chave={chave_nfe})")
-            with col2:
-                st.markdown("**Portal Nacional da Fazenda:** [Abrir](https://www.nfe.fazenda.gov.br/portal/consulta.aspx)")
 
     except Exception as e:
         st.error(f"Erro ao processar: {e}")
