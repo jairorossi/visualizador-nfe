@@ -27,15 +27,52 @@ st.markdown("""
         font-weight: bold !important;
         background-color: #f8f9fa !important;
     }
+    /* Estilo para o card da chave NFE */
+    .chave-nfe-card {
+        background-color: #e8f4f8 !important;
+        padding: 20px;
+        border-radius: 10px;
+        border: 2px solid #1a5f7a;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .chave-nfe-label {
+        color: #0a2f3a;
+        font-size: 14px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    .chave-nfe-value {
+        color: #000000;
+        font-size: 24px;
+        font-weight: 800;
+        font-family: monospace;
+        letter-spacing: 2px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 def metric_box(label, value):
     st.markdown(f'<div class="metric-card"><p class="metric-label">{label}</p><p class="metric-value">{value}</p></div>', unsafe_allow_html=True)
 
+def chave_nfe_box(chave):
+    # Formatar a chave em grupos de 4 dígitos para melhor legibilidade
+    if chave and len(chave) == 44:
+        chave_formatada = ' '.join([chave[i:i+4] for i in range(0, 44, 4)])
+    else:
+        chave_formatada = chave
+    
+    st.markdown(f'''
+    <div class="chave-nfe-card">
+        <p class="chave-nfe-label">🔑 CHAVE DA NOTA FISCAL ELETRÔNICA (44 DÍGITOS)</p>
+        <p class="chave-nfe-value">{chave_formatada}</p>
+    </div>
+    ''', unsafe_allow_html=True)
+
 def carregar_dados(xml_content):
     dados = xmltodict.parse(xml_content, process_namespaces=False)
-    return dados['nfeProc']['NFe']['infNFe']
+    return dados
 
 st.title("📑 Visualizador de NF-e (Layout Padrão DANFE)")
 st.markdown("---")
@@ -44,44 +81,44 @@ uploaded_file = st.file_uploader("Arraste o XML aqui", type="xml")
 
 if uploaded_file:
     try:
-        nfe = carregar_dados(uploaded_file.read())
+        dados_completos = carregar_dados(uploaded_file.read())
+        
+        # Extrair a chave NFE - Primeiro do protNFe (mais confiável)
+        chave_nfe = ""
+        if 'nfeProc' in dados_completos and 'protNFe' in dados_completos['nfeProc']:
+            protNFe = dados_completos['nfeProc']['protNFe']
+            if 'infProt' in protNFe and 'chNFe' in protNFe['infProt']:
+                chave_nfe = protNFe['infProt']['chNFe']
+        
+        # Se não encontrar no protNFe, tenta extrair do Id da infNFe
+        if not chave_nfe and 'nfeProc' in dados_completos and 'NFe' in dados_completos['nfeProc']:
+            nfe = dados_completos['nfeProc']['NFe']
+            if 'infNFe' in nfe and '@Id' in nfe['infNFe']:
+                id_nfe = nfe['infNFe']['@Id']
+                # Remove o prefixo "NFe" se existir
+                if id_nfe.startswith('NFe'):
+                    chave_nfe = id_nfe[3:]
+                else:
+                    chave_nfe = id_nfe
+        
+        # Extrair os dados da NFe para o resto do processamento
+        nfe = dados_completos['nfeProc']['NFe']['infNFe']
         ide = nfe['ide']
         emit = nfe['emit']
         dest = nfe['dest']
         tot = nfe['total']['ICMSTot']
         
-        # 1. CABEÇALHO (IDENTIFICAÇÃO) - AGORA COM CHAVE NFE PRIMEIRO
-        # Extrair a chave NFE (geralmente está no nfeProc/prot ou no infNFe)
-        chave_nfe = ""
-        if 'Id' in nfe:
-            # O Id geralmente começa com "NFe" seguido da chave
-            chave_nfe = nfe['Id'].replace('NFe', '') if nfe['Id'] else ""
-        elif 'protNFe' in nfe:
-            # Alternativa: pegar do protNFe
-            chave_nfe = nfe['protNFe']['infProt'].get('chNFe', '')
+        # 1. EXIBIR A CHAVE NFE PRIMEIRO (AGORA CORRETO!)
+        chave_nfe_box(chave_nfe)
         
-        # Se não encontrar, tenta outra forma
-        if not chave_nfe and 'NFe' in nfe:
-            chave_nfe = nfe['NFe'].get('Id', '').replace('NFe', '')
-        
-        # Formatar a chave para melhor visualização (grupos de 4 dígitos)
-        if chave_nfe and len(chave_nfe) == 44:
-            chave_formatada = ' '.join([chave_nfe[i:i+4] for i in range(0, 44, 4)])
-        else:
-            chave_formatada = chave_nfe
-        
-        # Exibir a chave NFE primeiro (ocupando toda a largura)
-        st.markdown("### 🔑 CHAVE DA NOTA FISCAL")
-        st.code(chave_formatada if chave_formatada else "Chave não encontrada", language=None)
-        
-        # Agora os cards com as outras informações
+        # 2. CABEÇALHO (IDENTIFICAÇÃO)
         c1, c2, c3, c4 = st.columns(4)
         with c1: metric_box("NÚMERO NF", ide['nNF'])
         with c2: metric_box("SÉRIE", ide['serie'])
         with c3: metric_box("VALOR TOTAL", f"R$ {tot['vNF']}")
         with c4: metric_box("OPERAÇÃO", ide['natOp'])
 
-        # 2. EMITENTE E DESTINATÁRIO
+        # 3. EMITENTE E DESTINATÁRIO
         col_em, col_dest = st.columns(2)
         with col_em:
             st.subheader("🏢 Emitente")
@@ -90,7 +127,7 @@ if uploaded_file:
             st.subheader("👤 Destinatário")
             st.success(f"**{dest['xNome']}**\n\nCNPJ: {dest['CNPJ']} | IE: {dest.get('IE', 'ISENTO')}\n\n{dest['enderDest']['xLgr']}, {dest['enderDest'].get('nro', '')} - {dest['enderDest']['xMun']}/{dest['enderDest']['UF']}")
 
-        # 3. FATURA / DUPLICATAS
+        # 4. FATURA / DUPLICATAS
         st.subheader("💳 FATURA / DUPLICATAS")
         duplicatas = nfe.get('cobr', {}).get('dup', [])
         if duplicatas:
@@ -100,7 +137,7 @@ if uploaded_file:
                 with cols_dup[i]:
                     st.warning(f"**Parc: {d.get('nDup')}**\n\nVenc: {d.get('dVenc')}\n\nValor: R$ {d.get('vDup')}")
 
-        # 4. CÁLCULO DO IMPOSTO (Conforme solicitado)
+        # 5. CÁLCULO DO IMPOSTO (Conforme solicitado)
         st.subheader("📊 CÁLCULO DO IMPOSTO")
         r1 = st.columns(5)
         r1[0].text_input("BASE DE CÁLC. DO ICMS", value=tot.get('vBC'), disabled=True)
@@ -122,7 +159,7 @@ if uploaded_file:
         r3[2].text_input("V. TOT. TRIB.", value=tot.get('vTotTrib', '0.00'), disabled=True)
         r3[3].text_input("VALOR TOTAL DA NOTA", value=tot.get('vNF'), disabled=True)
 
-        # 5. TRANSPORTADOR / VOLUMES TRANSPORTADOS
+        # 6. TRANSPORTADOR / VOLUMES TRANSPORTADOS
         st.subheader("🚚 TRANSPORTADOR / VOLUMES TRANSPORTADOS")
         transp = nfe.get('transp', {})
         t_data = transp.get('transporta', {})
@@ -141,7 +178,7 @@ if uploaded_file:
         tr2[2].text_input("PESO BRUTO", value=vol.get('pesoB', '0.000'), disabled=True)
         tr2[3].text_input("PESO LÍQUIDO", value=vol.get('pesoL', '0.000'), disabled=True)
 
-        # 6. DADOS DOS PRODUTOS
+        # 7. DADOS DOS PRODUTOS
         st.subheader("📦 DADOS DOS PRODUTOS / SERVIÇOS")
         itens = nfe['det']
         if not isinstance(itens, list): itens = [itens]
@@ -166,7 +203,7 @@ if uploaded_file:
             })
         st.dataframe(pd.DataFrame(lista_prods), use_container_width=True, hide_index=True)
 
-        # 7. INFORMAÇÕES ADICIONAIS
+        # 8. INFORMAÇÕES ADICIONAIS
         st.subheader("📝 DADOS ADICIONAIS")
         st.info(f"**INFORMAÇÕES COMPLEMENTARES:**\n\n{nfe['infAdic'].get('infCpl', 'N/A')}")
 
