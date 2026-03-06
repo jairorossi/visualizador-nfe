@@ -48,11 +48,22 @@ st.markdown("""
         font-weight: 800;
         font-family: monospace;
         letter-spacing: 2px;
-        cursor: pointer;
-        user-select: all;
+        margin-bottom: 15px;
     }
-    .chave-nfe-value:hover {
-        background-color: #f0f0f0;
+    /* Estilo do botão de copiar */
+    .copy-button {
+        background-color: #1a5f7a;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 5px;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.3s;
+    }
+    .copy-button:hover {
+        background-color: #0d3b4f;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -67,13 +78,39 @@ def chave_nfe_box(label, chave):
     else:
         chave_formatada = chave
     
-    st.markdown(f'''
-    <div class="chave-nfe-card" onclick="navigator.clipboard.writeText('{chave}')">
+    # Criar um ID único para o botão e mensagem
+    import random
+    button_id = f"copy_btn_{random.randint(1000, 9999)}"
+    msg_id = f"copy_msg_{random.randint(1000, 9999)}"
+    
+    html_code = f"""
+    <div class="chave-nfe-card">
         <p class="chave-nfe-label">{label}</p>
         <p class="chave-nfe-value">{chave_formatada}</p>
-        <p style="color: #888; font-size: 11px; margin-top: 5px;">👆 Clique para copiar</p>
+        <button class="copy-button" onclick="copiarChave('{chave}', '{msg_id}')" id="{button_id}">
+            📋 COPIAR CHAVE
+        </button>
+        <p id="{msg_id}" style="color: #28a745; font-size: 12px; margin-top: 8px; min-height: 18px;"></p>
     </div>
-    ''', unsafe_allow_html=True)
+
+    <script>
+    function copiarChave(chave, msgId) {{
+        navigator.clipboard.writeText(chave).then(function() {{
+            document.getElementById(msgId).innerHTML = '✅ Chave copiada com sucesso!';
+            setTimeout(function() {{
+                document.getElementById(msgId).innerHTML = '';
+            }}, 2000);
+        }}, function(err) {{
+            document.getElementById(msgId).innerHTML = '❌ Erro ao copiar';
+            setTimeout(function() {{
+                document.getElementById(msgId).innerHTML = '';
+            }}, 2000);
+        }});
+    }}
+    </script>
+    """
+    
+    st.components.v1.html(html_code, height=180)
 
 def carregar_dados(xml_content):
     dados = xmltodict.parse(xml_content, process_namespaces=False)
