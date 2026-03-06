@@ -50,7 +50,31 @@ if uploaded_file:
         dest = nfe['dest']
         tot = nfe['total']['ICMSTot']
         
-        # 1. CABEÇALHO (IDENTIFICAÇÃO)
+        # 1. CABEÇALHO (IDENTIFICAÇÃO) - AGORA COM CHAVE NFE PRIMEIRO
+        # Extrair a chave NFE (geralmente está no nfeProc/prot ou no infNFe)
+        chave_nfe = ""
+        if 'Id' in nfe:
+            # O Id geralmente começa com "NFe" seguido da chave
+            chave_nfe = nfe['Id'].replace('NFe', '') if nfe['Id'] else ""
+        elif 'protNFe' in nfe:
+            # Alternativa: pegar do protNFe
+            chave_nfe = nfe['protNFe']['infProt'].get('chNFe', '')
+        
+        # Se não encontrar, tenta outra forma
+        if not chave_nfe and 'NFe' in nfe:
+            chave_nfe = nfe['NFe'].get('Id', '').replace('NFe', '')
+        
+        # Formatar a chave para melhor visualização (grupos de 4 dígitos)
+        if chave_nfe and len(chave_nfe) == 44:
+            chave_formatada = ' '.join([chave_nfe[i:i+4] for i in range(0, 44, 4)])
+        else:
+            chave_formatada = chave_nfe
+        
+        # Exibir a chave NFE primeiro (ocupando toda a largura)
+        st.markdown("### 🔑 CHAVE DA NOTA FISCAL")
+        st.code(chave_formatada if chave_formatada else "Chave não encontrada", language=None)
+        
+        # Agora os cards com as outras informações
         c1, c2, c3, c4 = st.columns(4)
         with c1: metric_box("NÚMERO NF", ide['nNF'])
         with c2: metric_box("SÉRIE", ide['serie'])
